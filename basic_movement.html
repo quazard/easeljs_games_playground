@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <script type="text/javascript" src="assets/javascript/jquery-1.11.3.min.js"></script>
+  <script type="text/javascript" src="assets/javascript/easeljs-0.8.0.min.js"></script>
+</head>
+<body>
+  <canvas id="game" width="400" height="300" style="border: 1px solid black"></canvas>
+
+  <script>
+    var canvas;
+    var stage;
+    var hero;
+    var keys = {};
+
+    $(document).ready(function(){
+      canvas = $("#game").get(0);
+      stage = new createjs.Stage(canvas);
+
+      hero_img = new Image();
+      hero_img.src = "assets/image/mario.gif";
+      hero_img.onload = function(event){
+        hero = new Hero(event.target);
+        stage.addChild(hero);
+      }
+
+      createjs.Ticker.on("tick", tick);
+      createjs.Ticker.framerate = 30;
+
+      document.onkeydown = handleKeyDown;
+      document.onkeyup = handleKeyUp;
+    });
+
+    function tick(){
+      hero.tick();
+      stage.update();
+    }
+
+    function handleKeyDown(event){
+      keys[event.which] = true;
+    }
+
+    function handleKeyUp(event){
+      delete keys[event.which];
+    }
+
+    // Hero module
+    (function(){
+      function Hero(image){
+        this.image = image;
+        this.platform_position = canvas.height - this.image.height;
+        this.y = this.platform_position;
+        this.jumping = false;
+        this.maxJumpLimit = this.platform_position - 80;
+      }
+
+      Hero.prototype = new createjs.Bitmap(this.image);
+
+      Hero.prototype.velocity = { x: 10, y: 10 };
+
+      Hero.prototype.jump = function(){
+        if(this.jumping) {
+          this.y -= this.velocity.y;
+          if(this.y <= this.maxJumpLimit) this.jumping = false;
+        } else if(this.y < this.platform_position) {
+          this.y += this.velocity.y;
+        }
+      }
+
+      Hero.prototype.tick = function(){
+        if(keys[39]) this.x += this.velocity.x;
+        if(keys[37]) this.x -= this.velocity.x;
+        if(keys[32] && !this.jumping && this.y === this.platform_position) this.jumping = true;
+
+        this.jump();
+      }
+
+      window.Hero = Hero;
+    }());
+  </script>
+</body>
+</html>
