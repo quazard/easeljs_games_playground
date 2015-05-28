@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <script type="text/javascript" src="assets/javascript/jquery-1.11.3.min.js"></script>
+  <script type="text/javascript" src="assets/javascript/easeljs-0.8.0.min.js"></script>
+</head>
+<body>
+  <canvas id="game" width="400" height="300" style="border: 1px solid black"></canvas>
+
+  <script>
+    var canvas;
+    var stage;
+    var hero;
+    var touchMap = {};
+
+    $(document).ready(function(){
+      canvas = $("#game").get(0);
+      stage = new createjs.Stage(canvas);
+      createjs.Touch.enable(stage);
+
+      hero = new Hero();
+
+      stage.on("stagemousedown", handleClick);
+
+      createjs.Ticker.on("tick", tick);
+      createjs.Ticker.framerate = 30;
+    });
+
+    function tick(){
+      hero.tick();
+      stage.update();
+    }
+
+    function handleClick(event){
+      touchMap["x"] = event.stageX;
+      touchMap["y"] = event.stageY;
+    }
+
+    (function(){
+      function Hero(){
+        this.spriteSheet = new createjs.SpriteSheet(this.heroSpriteSheetData);
+        this.sprite = new createjs.Sprite(this.spriteSheet, "stand");
+
+        this.ground_position = canvas.height - this.sprite.getBounds().height;
+        this.sprite_center = this.sprite.getBounds().width / 2;
+        this.sprite.x = 0 + this.sprite_center;
+        this.sprite.y = this.ground_position;
+        this.sprite.regX = this.sprite_center;
+        this.jumping = false;
+        touchMap = { x: this.sprite.x, y: this.sprite.y };
+
+        this.maxJumpLimit = this.ground_position - 80;
+
+        stage.addChild(this.sprite);
+      }
+
+      Hero.prototype.velocity = { x: 10, y: 10 };
+      Hero.prototype.heroSpriteSheetData = {
+        images: ["assets/image/player_spritesheet.png"],
+        frames: [
+          // x, y, width, height
+          [67,  190,  66, 92],  //stand
+          [0,   0,    70, 94],  //walk01
+          [71,  0,    70, 94],  //walk02
+          [142, 0,    70, 94],  //walk03
+          [0,   95,   70, 94],  //walk04
+          [71,  95,   70, 94],  //walk05
+          [142, 95,   70, 94],  //walk06
+          [213, 0,    70, 94],  //walk07
+          [284, 0,    70, 94],  //walk08
+          [213, 95,   70, 94],  //walk09
+          [355, 0,    70, 94],  //walk10
+          [284, 95,   70, 94],  //walk11
+          [423, 95,   66, 94]   //jump
+        ],
+        animations: {
+          stand:  [0],
+          walk:   [1, 11],
+          jump:   [12]
+        }
+      };
+
+      Hero.prototype.jump = function(){
+        if(this.jumping) {
+          this.sprite.y -= this.velocity.y;
+          if(this.sprite.y <= this.maxJumpLimit){
+            this.jumping = false;
+            touchMap.y = this.ground_position;
+          }
+        } else if(this.sprite.y < this.ground_position) {
+          this.sprite.y += this.velocity.y;
+        }
+      }
+
+      Hero.prototype.tick = function(){
+        if(touchMap.y < this.sprite.y && !this.jumping && this.sprite.y === this.ground_position)
+          this.jumping = true;
+
+        this.jump();
+
+        if(Math.ceil(touchMap.x / 10) > Math.ceil(this.sprite.x / 10)){
+          this.sprite.scaleX = 1;
+          this.sprite.x += this.velocity.x;
+        } else if(Math.ceil(touchMap.x / 10) < Math.ceil(this.sprite.x / 10)) {
+          this.sprite.scaleX = -1;
+          this.sprite.x -= this.velocity.x;
+        } 
+
+        if(this.sprite.y != this.ground_position){
+          this.sprite.gotoAndPlay("jump");
+        } else if(Math.ceil(touchMap.x / 10) != Math.ceil(this.sprite.x / 10)){
+          if(this.sprite.currentAnimation != "walk")
+            this.sprite.gotoAndPlay("walk");
+        } else {
+          this.sprite.gotoAndPlay("stand");
+        }
+      }
+
+      window.Hero = Hero;
+    }());
+  </script>
+</body>
+</html>
