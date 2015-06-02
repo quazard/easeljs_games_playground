@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <script type="text/javascript" src="assets/javascript/jquery-1.11.3.min.js"></script>
+  <script type="text/javascript" src="assets/javascript/easeljs-0.8.0.min.js"></script>
+  <script type="text/javascript" src="assets/javascript/ndgmr.Collision.js"></script>
+</head>
+<body>
+  <canvas id="game" width="400" height="300" style="border: 1px solid black"></canvas>
+
+  <script>
+    var canvas;
+    var stage;
+    var scenery;
+    var hero;
+    var touchMap = {};
+    var collideables = [];
+
+    $(document).ready(function(){
+      canvas = $("#game").get(0);
+      stage = new createjs.Stage(canvas);
+      createjs.Touch.enable(stage);
+
+      scenery = new Scenery();
+      hero = new Hero();
+
+      createjs.Ticker.framerate = 30;
+      createjs.Ticker.on("tick", tick);
+
+      stage.on("stagemousedown", handleClick);
+    });
+
+    function tick(){
+      hero.tick();
+      stage.update();
+    }
+
+    function handleClick(event){
+      touchMap["x"] = event.stageX;
+      touchMap["y"] = event.stageY;
+    }
+
+    // Scenery module
+    (function(){
+      function Scenery(){
+        this.spriteSheet = new createjs.SpriteSheet(this.scenerySpriteSheetData);
+
+        // Build floor
+        this.floor = new createjs.Container();
+        this.floor.y = canvas.height - 10;
+
+        for(var i = 0; i < (canvas.width / 10); i++){
+          var block = new createjs.Sprite(this.spriteSheet, "grass");
+          block.scaleX = 0.5;
+          block.scaleY = 0.5;
+          block.x = i * (block.getBounds().width * 0.5);
+
+          this.floor.addChild(block);
+        }
+
+        // Build a platform
+        this.platform = new createjs.Container();
+        this.platform.x = canvas.width / 2;
+        this.platform.y = canvas.height - 140;
+
+        for(var i = 0; i < 5; i++){
+          var block = new createjs.Sprite(this.spriteSheet, "box_coin");
+          block.scaleX = 0.5;
+          block.scaleY = 0.5;
+          block.x = i * (block.getBounds().width * 0.5);
+
+          this.platform.addChild(block);
+        }
+
+        collideables.push(this.floor, this.platform);
+        stage.addChild(this.floor, this.platform);
+      }
+
+      Scenery.prototype.scenerySpriteSheetData = {
+        images: ["assets/image/tiles_spritesheet.png"],
+        frames: [
+          [0, 720, 70, 70],     //box coin
+          [576, 432, 70, 70]    //grass
+        ],
+        animations: {
+          box_coin: [0],
+          grass: [1]
+        }
+      };
+
+      window.Scenery = Scenery;
+    }());
+
+    // Hero module
+    (function(){
+      function Hero(){
+        this.spriteSheet = new createjs.SpriteSheet(this.heroSpriteSheetData);
+        this.sprite = new createjs.Sprite(this.spriteSheet, "stand");
+
+        this.collision = { x: 0, y: scenery.floor.y - this.sprite.getBounds().height };
+        //this.ground_position = canvas.height - this.sprite.getBounds().height - 10;
+        this.sprite_center = this.sprite.getBounds().width / 2;
+        this.sprite.x = 0 + this.sprite_center;
+        this.sprite.y = this.collision.y;
+        this.sprite.regX = this.sprite_center;
+        touchMap = { x: this.sprite.x, y: this.sprite.y };
+
+        stage.addChild(this.sprite);
+      }
+
+      Hero.prototype.velocity = { x: 10, y: 10 };
+      Hero.prototype.heroSpriteSheetData = {
+        images: ["assets/image/player_spritesheet.png"],
+        frames: [
+          // x, y, width, height
+          [67,  190,  66, 92],  //stand
+          [0,   0,    70, 94],  //walk01
+          [71,  0,    70, 94],  //walk02
+          [142, 0,    70, 94],  //walk03
+          [0,   95,   70, 94],  //walk04
+          [71,  95,   70, 94],  //walk05
+          [142, 95,   70, 94],  //walk06
+          [213, 0,    70, 94],  //walk07
+          [284, 0,    70, 94],  //walk08
+          [213, 95,   70, 94],  //walk09
+          [355, 0,    70, 94],  //walk10
+          [284, 95,   70, 94],  //walk11
+          [423, 95,   66, 94]   //jump
+        ],
+        animations: {
+          stand:  [0],
+          walk:   [1, 11],
+          jump:   [12]
+        }
+      };
+
+      Hero.prototype.tick = function(){
+        // Move through axis x
+        if(Math.ceil(touchMap.x / 10) > Math.ceil(this.sprite.x / 10)){
+          this.sprite.scaleX = 1;
+          this.sprite.x += this.velocity.x;
+        } else if(Math.ceil(touchMap.x / 10) < Math.ceil(this.sprite.x / 10)) {
+          this.sprite.scaleX = -1;
+          this.sprite.x -= this.velocity.x;
+        }
+
+        // Play animations
+        if(!this.collision){
+          this.sprite.gotoAndPlay("jump");
+        } else if(Math.ceil(touchMap.x / 10) != Math.ceil(this.sprite.x / 10)){
+          if(this.sprite.currentAnimation != "walk")
+            this.sprite.gotoAndPlay("walk");
+        } else {
+          this.sprite.gotoAndPlay("stand");
+        }
+
+        // Validate collitions
+        for(var i = 0; i < collideables.length; i++){
+          var collide = ndgmr.checkRectCollision(this.sprite, collideables[i]);
+          if(collide){
+            this.collision = collide;
+            break;
+          }
+        }
+
+        console.log(this.collision);
+      }
+
+      window.Hero = Hero;
+    }());
+  </script>
+</body>
+</html>
