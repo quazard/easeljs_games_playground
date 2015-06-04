@@ -48,9 +48,9 @@
 
         // Build floor
         this.floor = new createjs.Container();
-        this.floor.y = canvas.height - 10;
+        this.floor.y = canvas.height - 20;
 
-        for(var i = 0; i < (canvas.width / 10); i++){
+        for(var i = 0; i < 8; i++){
           var block = new createjs.Sprite(this.spriteSheet, "grass");
           block.scaleX = 0.5;
           block.scaleY = 0.5;
@@ -62,7 +62,7 @@
         // Build a platform
         this.platform = new createjs.Container();
         this.platform.x = canvas.width / 2;
-        this.platform.y = canvas.height - 140;
+        this.platform.y = canvas.height - 150;
 
         for(var i = 0; i < 5; i++){
           var block = new createjs.Sprite(this.spriteSheet, "box_coin");
@@ -81,7 +81,7 @@
         images: ["assets/image/tiles_spritesheet.png"],
         frames: [
           [0, 720, 70, 70],     //box coin
-          [576, 432, 70, 70]    //grass
+          [576, 288, 70, 70]    //grass
         ],
         animations: {
           box_coin: [0],
@@ -98,13 +98,15 @@
         this.spriteSheet = new createjs.SpriteSheet(this.heroSpriteSheetData);
         this.sprite = new createjs.Sprite(this.spriteSheet, "stand");
 
-        this.collision = { x: 0, y: scenery.floor.y - this.sprite.getBounds().height };
-        //this.ground_position = canvas.height - this.sprite.getBounds().height - 10;
+        this.collision = null;
         this.sprite_center = this.sprite.getBounds().width / 2;
         this.sprite.x = 0 + this.sprite_center;
-        this.sprite.y = this.collision.y;
+        this.sprite.y = 0;
         this.sprite.regX = this.sprite_center;
-        touchMap = { x: this.sprite.x, y: this.sprite.y };
+        touchMap = {};
+        this.maxJumpLimit = 170;
+        this.jumping = false;
+        this.onair = 0;
 
         stage.addChild(this.sprite);
       }
@@ -145,10 +147,33 @@
           this.sprite.x -= this.velocity.x;
         }
 
+        // Move through axis y
+        if(this.onair == this.maxJumpLimit){
+          this.jumping = false;
+        }
+
+        if(touchMap.y < this.sprite.y && this.collision && this.onair == 0){
+          this.jumping = true;
+        }
+
+        if(this.jumping){
+          this.onair += 10;
+          this.velocity.y = -10;
+        } else if(!this.jumping && !this.collision){
+          this.velocity.y = 10;
+        } else {
+          this.onair = 0;
+          this.velocity.y = 0;
+        }
+
+        // Gravity
+        touchMap.y = canvas.height;
+        this.sprite.y += this.velocity.y;
+
         // Play animations
         if(!this.collision){
           this.sprite.gotoAndPlay("jump");
-        } else if(Math.ceil(touchMap.x / 10) != Math.ceil(this.sprite.x / 10)){
+        } else if(touchMap.x && Math.ceil(touchMap.x / 10) != Math.ceil(this.sprite.x / 10)){
           if(this.sprite.currentAnimation != "walk")
             this.sprite.gotoAndPlay("walk");
         } else {
@@ -156,15 +181,14 @@
         }
 
         // Validate collitions
+        var collide = null;
         for(var i = 0; i < collideables.length; i++){
-          var collide = ndgmr.checkRectCollision(this.sprite, collideables[i]);
-          if(collide){
-            this.collision = collide;
-            break;
-          }
+          var collisionResult = ndgmr.checkRectCollision(this.sprite, collideables[i]);
+          if(collisionResult)
+            collide = collisionResult;
         }
 
-        console.log(this.collision);
+        this.collision = collide;
       }
 
       window.Hero = Hero;
